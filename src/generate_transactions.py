@@ -18,15 +18,58 @@ for _ in range(5000):
         "pattern": "none",
     })
 
-# Fraud pattern: card testing (bursts of tiny online charges)
-for card in random.sample(range(1, 201), 8):
-    burst_start = start + timedelta(minutes=random.randint(0, 29 * 24 * 60))
-    for i in range(random.randint(12, 25)):
+# Legitimate small online purchases (noise) drawn from same card pool
+for card in random.sample(range(1, 201), 25):
+    legit_start = start + timedelta(minutes=random.randint(0, 29 * 24 * 60))
+    for _ in range(random.randint(3, 7)):
         rows.append({
             "txn_id": f"T{len(rows):06d}",
             "card_id": f"C{card:04d}",
-            "timestamp": burst_start + timedelta(seconds=random.randint(0, 600)),
-            "amount": round(random.uniform(0.5, 2.0), 2),
+            "timestamp": legit_start + timedelta(seconds=random.randint(0, 900)),
+            "amount": round(random.uniform(0.99, 2.99), 2),
+            "merchant_category": "online",
+            "is_fraud": 0,
+            "pattern": "legit_small_online",
+        })
+
+# Fraud pattern: card testing (bursts of tiny online charges)
+# More cards, burst sizes 4-25, spread up to 20 minutes
+for card in random.sample(range(1, 201), 15):
+    burst_start = start + timedelta(minutes=random.randint(0, 29 * 24 * 60))
+    for i in range(random.randint(4, 25)):
+        rows.append({
+            "txn_id": f"T{len(rows):06d}",
+            "card_id": f"C{card:04d}",
+            "timestamp": burst_start + timedelta(seconds=random.randint(0, 1200)),
+            "amount": round(random.uniform(0.5, 2.99), 2),
+            "merchant_category": "online",
+            "is_fraud": 1,
+            "pattern": "card_testing",
+        })
+
+# Some cards have both legit small online bursts and fraud testing bursts
+combined_cards = random.sample(range(1, 201), random.randint(3, 5))
+for card in combined_cards:
+    # legit small online burst
+    legit_start = start + timedelta(minutes=random.randint(0, 29 * 24 * 60))
+    for _ in range(random.randint(3, 7)):
+        rows.append({
+            "txn_id": f"T{len(rows):06d}",
+            "card_id": f"C{card:04d}",
+            "timestamp": legit_start + timedelta(seconds=random.randint(0, 900)),
+            "amount": round(random.uniform(0.99, 2.99), 2),
+            "merchant_category": "online",
+            "is_fraud": 0,
+            "pattern": "legit_small_online",
+        })
+    # fraud testing burst (different time)
+    fraud_start = start + timedelta(minutes=random.randint(0, 29 * 24 * 60))
+    for i in range(random.randint(4, 25)):
+        rows.append({
+            "txn_id": f"T{len(rows):06d}",
+            "card_id": f"C{card:04d}",
+            "timestamp": fraud_start + timedelta(seconds=random.randint(0, 1200)),
+            "amount": round(random.uniform(0.5, 2.99), 2),
             "merchant_category": "online",
             "is_fraud": 1,
             "pattern": "card_testing",
