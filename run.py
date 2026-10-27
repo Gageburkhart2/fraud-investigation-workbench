@@ -1,9 +1,8 @@
 """Orchestrate the fraud investigation pipeline.
 
-Steps (default): generate → detect → summarize
+Steps (default): generate → detect → summarize → evaluate
 
-You can also run individual steps via command‑line flags:
-  --steps generate,detect,summary
+Additional options: --seed for data generation, --model and --temperature for LLM summarization.
 """
 
 import argparse
@@ -11,35 +10,39 @@ import subprocess
 import sys
 import os
 
-def run_step(script_path: str):
-    # Execute the script using the same Python interpreter
-    result = subprocess.run([sys.executable, script_path], check=True)
+def run_step(script_path, args=None):
+    cmd = [sys.executable, script_path]
+    if args:
+        cmd.extend(args)
+    result = subprocess.run(cmd, check=True)
     return result.returncode
 
 def main():
-    parser = argparse.ArgumentParser(description="Run the fraud investigation workflow")
-    parser.add_argument(
-        "--steps",
-        type=str,
-        default="generate,detect,summary",
-        help="Comma‑separated list of steps to run: generate,detect,summary",
-    )
+    parser = argparse.ArgumentParser(description="Run the fraud investigation pipeline")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for data generation")
+    parser.add_argument("--model", type=str, help="Ollama model name (overrides OLLAMA_MODEL env)")
+    parser.add_argument("--temperature", type=float, default=0.0, help="LLM temperature")
     args = parser.parse_args()
-    steps = [s.strip() for s in args.steps.split(",") if s.strip()]
 
-    step_map = {
-        "generate": "src/generate_transactions.py",
-        "detect": "src/detect_rules.py",
-        "summary": "src/summarize_cases.py",
-    }
+    # Generate
+    print("Running generate_transactions")
+    run_step(os.path.join("src", "generate_transactions.py"), ["--seed", str(args.seed)])
 
-    for step in steps:
-        script = step_map.get(step)
-        if not script:
-            print(f"Unknown step: {step}", file=sys.stderr)
-            sys.exit(1)
-        print(f"Running step: {step} ({script})")
-        run_step(script)
+    # Detect
+    print("Running detect_rules")
+    run_step(os.path.join("src", "detect_rules.py"))
+
+    # Summarize
+    print("Running summarize_cases")
+    summarize_args = []
+    if args.model:
+        summarize_args.extend(["--model", args.model])
+    summarize_args.extend(["--temperature", str(args.temperature)])
+    run_step(os.path.join("src", "summarize_cases.py"), summarize_args)
+
+    # Evaluate
+    print("Running evaluate_summaries")
+    run_step(os.path.join("src", "evaluate_summaries.py"))
 
 if __name__ == "__main__":
     main()
