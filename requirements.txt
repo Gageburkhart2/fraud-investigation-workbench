@@ -1,0 +1,5 @@
+pandas
+# Optional LLM libraries (install when needed)
+# transformers
+# torch
+# llama-cpp-python

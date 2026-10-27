@@ -1,8 +1,11 @@
+import os
 import random
 from datetime import datetime, timedelta
-import pandas as pd
+import csv
 
-random.seed(42)
+# Ensure the data directory exists
+os.makedirs("data", exist_ok=True)
+
 start = datetime(2026, 9, 1)
 rows = []
 
@@ -11,7 +14,7 @@ for _ in range(5000):
     rows.append({
         "txn_id": f"T{len(rows):06d}",
         "card_id": f"C{random.randint(1, 200):04d}",
-        "timestamp": start + timedelta(minutes=random.randint(0, 30 * 24 * 60)),
+        "timestamp": (start + timedelta(minutes=random.randint(0, 30 * 24 * 60))).isoformat(),
         "amount": round(random.lognormvariate(3.2, 0.9), 2),
         "merchant_category": random.choice(["grocery", "fuel", "dining", "retail", "online"]),
         "is_fraud": 0,
@@ -25,7 +28,7 @@ for card in random.sample(range(1, 201), 25):
         rows.append({
             "txn_id": f"T{len(rows):06d}",
             "card_id": f"C{card:04d}",
-            "timestamp": legit_start + timedelta(seconds=random.randint(0, 900)),
+            "timestamp": (legit_start + timedelta(seconds=random.randint(0, 900))).isoformat(),
             "amount": round(random.uniform(0.99, 2.99), 2),
             "merchant_category": "online",
             "is_fraud": 0,
@@ -33,14 +36,13 @@ for card in random.sample(range(1, 201), 25):
         })
 
 # Fraud pattern: card testing (bursts of tiny online charges)
-# More cards, burst sizes 4-25, spread up to 20 minutes
 for card in random.sample(range(1, 201), 15):
     burst_start = start + timedelta(minutes=random.randint(0, 29 * 24 * 60))
     for i in range(random.randint(4, 25)):
         rows.append({
             "txn_id": f"T{len(rows):06d}",
             "card_id": f"C{card:04d}",
-            "timestamp": burst_start + timedelta(seconds=random.randint(0, 1200)),
+            "timestamp": (burst_start + timedelta(seconds=random.randint(0, 1200))).isoformat(),
             "amount": round(random.uniform(0.5, 2.99), 2),
             "merchant_category": "online",
             "is_fraud": 1,
@@ -56,7 +58,7 @@ for card in combined_cards:
         rows.append({
             "txn_id": f"T{len(rows):06d}",
             "card_id": f"C{card:04d}",
-            "timestamp": legit_start + timedelta(seconds=random.randint(0, 900)),
+            "timestamp": (legit_start + timedelta(seconds=random.randint(0, 900))).isoformat(),
             "amount": round(random.uniform(0.99, 2.99), 2),
             "merchant_category": "online",
             "is_fraud": 0,
@@ -68,13 +70,16 @@ for card in combined_cards:
         rows.append({
             "txn_id": f"T{len(rows):06d}",
             "card_id": f"C{card:04d}",
-            "timestamp": fraud_start + timedelta(seconds=random.randint(0, 1200)),
+            "timestamp": (fraud_start + timedelta(seconds=random.randint(0, 1200))).isoformat(),
             "amount": round(random.uniform(0.5, 2.99), 2),
             "merchant_category": "online",
             "is_fraud": 1,
             "pattern": "card_testing",
         })
 
-df = pd.DataFrame(rows).sort_values("timestamp")
-df.to_csv("data/transactions.csv", index=False)
-print(df.shape, df["is_fraud"].sum(), "fraud rows")
+# Write to CSV
+with open("data/transactions.csv", "w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=["txn_id","card_id","timestamp","amount","merchant_category","is_fraud","pattern"])
+    writer.writeheader()
+    writer.writerows(rows)
+print(f"Generated {len(rows)} transactions, {sum(r['is_fraud'] for r in rows)} fraud rows")
