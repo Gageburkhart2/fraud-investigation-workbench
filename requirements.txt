@@ -1,5 +1,4 @@
-pandas
+requests
+pytest
 # Optional LLM libraries (install when needed)
-# transformers
-# torch
-# llama-cpp-python
+# ollama (via system install)
