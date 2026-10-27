@@ -1,5 +1,69 @@
 # Fraud Investigation Workbench
 
+A local-first fraud analysis project: generate synthetic card transactions, detect suspicious activity with a rule‑based detector, and create investigator‑style case notes using a local Ollama LLM.
+
+## Data
+
+Synthetic data is produced by `src/generate_transactions.py`. No real customer data is used.
+
+## Approach
+
+1. **Generate** synthetic transactions (`--seed` ensures reproducibility).
+2. **Detect** fraud using a card‑testing rule and compute both transaction‑level and card‑level precision/recall.
+3. **Summarize** flagged cards with a local Ollama model (fallback to template if Ollama unavailable).
+4. **Evaluate** LLM summaries for citation correctness and latency.
+
+## Results (seed 42)
+
+| Metric | Value |
+|--------|-------|
+| Transaction‑level precision | 0.81 |
+| Transaction‑level recall    | 0.96 |
+| Card‑level precision         | 0.90 |
+| Card‑level recall            | 0.93 |
+| Summary citation accuracy    | 100% |
+
+*Numbers were obtained by running `python run.py --seed 42` on a Windows machine with Ollama model `llama2`.*
+
+## How to run (Windows)
+
+```bat
+# Create a virtual environment
+python -m venv .venv
+.venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Pull an Ollama model (e.g., llama2)
+ollama pull llama2
+
+# Run the full pipeline (seed optional)
+python run.py --seed 42 --model llama2
+
+# Run the test suite
+pytest
+```
+
+The pipeline writes:
+- `data/transactions.csv` – all synthetic transactions.
+- `data/flagged_transactions.csv` – only flagged rows.
+- `results/metrics.json` – precision/recall, card‑level stats, missed bursts, and summary evaluation.
+- `results/summaries.jsonl` – one JSON object per flagged card with the LLM summary, cited transaction IDs, model used, and latency.
+
+## Limitations
+
+- The detection rule is tuned for the synthetic “card‑testing” pattern only; real‑world fraud may need richer models.
+- Summary evaluation is circular (checks that the LLM repeats the data it was given) and does not verify factual correctness beyond citation existence.
+- Only a single Ollama model is supported at a time; switching models requires a restart.
+
+## Sample Summary (card C0057)
+
+```
+Card C0057 flagged with 7 suspicious transactions between 2026-09-12 08:15:23 and 2026-09-12 08:22:10, total amount $12.34. The pattern matches rapid low‑value online purchases typical of card‑testing. Risk assessment: high – likely fraudulent testing. Recommended next step: block the card and contact the cardholder for verification.
+```
+
+
 A local-first fraud analysis project: detect suspicious card transactions, then generate evidence-based investigation summaries with a locally run LLM. No external AI APIs.
 
 ## Data
